@@ -4,6 +4,12 @@ import math
 import random
 import numpy as np
 
+SEARCH = "search"
+FOLLOW = "follow"
+TURN_LEFT = "tl"
+FAILSAFE = "fs"
+
+DISTANCE = 50
 
 class DifferentialDriveRobot:
     def __init__(self, x, y, theta, image_path, axl_dist=5, wheel_radius=2.2):
@@ -24,6 +30,7 @@ class DifferentialDriveRobot:
         self.compass = CompassSensor()
         self.odometry_weight = 0.0
         self.odometry_noise_level = 0.01
+        self.state = SEARCH
 
     def predict(self, delta_time):
         self.move(delta_time)
@@ -121,14 +128,57 @@ class DifferentialDriveRobot:
             lidar_scans[len(lidar_scans) - 2 * sensor_steps_for_front_array]
         ]
 
-        left_sensor = lidar_scans[int(len(lidar_scans) / 4)]
-        front_left_sensor_1 = lidar_scans[2 * sensor_steps_for_front_array - 1]
+        right_sensor = lidar_scans[int(len(lidar_scans) / 4)]
+        front_right_sensor_1 = lidar_scans[2 * sensor_steps_for_front_array - 1]
         back_sensor = lidar_scans[int(len(lidar_scans) / 2)]
-        front_right_sensor_1 = lidar_scans[len(lidar_scans) - 2 * sensor_steps_for_front_array + 1]
-        right_sensor = lidar_scans[int((len(lidar_scans) / 4) * 3)]
+        front_left_sensor_1 = lidar_scans[len(lidar_scans) - 2 * sensor_steps_for_front_array + 1]
+        left_sensor = lidar_scans[int((len(lidar_scans) / 4) * 3)]
+        front_sensor = lidar_scans[0]
         #Exercise 6.1 modify this to control the robot
         #Exercise 6.2 use your exploration algorithm from previous exercise if you have it.
-        self.set_motor_speeds(250, 250)
+        left_wheel_velocity = 0
+        right_wheel_velocity = 0
+
+        if self.state == SEARCH:
+    #print("SEARCH", distances[0])
+            if front_sensor > DISTANCE:
+                left_wheel_velocity = 250
+                right_wheel_velocity = 250
+            else:
+                left_wheel_velocity = 0
+                right_wheel_velocity = 0
+                self.state = TURN_LEFT
+        elif self.state == TURN_LEFT:
+            #print("TURN", distances[270])
+            if right_sensor > DISTANCE:
+                left_wheel_velocity = -250
+                right_wheel_velocity = 250
+            else:
+                self.state = FOLLOW
+        elif self.state == FOLLOW:
+            #print("FOLLOW", distances[270])
+            if right_sensor > DISTANCE + 5:
+                left_wheel_velocity = 250
+                right_wheel_velocity = 50
+            elif right_sensor < DISTANCE - 5:
+                left_wheel_velocity = 50
+                right_wheel_velocity = 250
+            else:
+                left_wheel_velocity = 250
+                right_wheel_velocity = 250
+            if front_sensor <= DISTANCE:
+                self.state = TURN_LEFT
+                left_wheel_velocity = 0
+                right_wheel_velocity = 0
+        elif self.state == FAILSAFE:
+            if front_sensor> DISTANCE * 2:
+                self.state = FOLLOW
+            else:
+                left_wheel_velocity = -250
+                right_wheel_velocity = 250
+        if right_sensor <= DISTANCE and front_sensor <= DISTANCE:
+            self.state = FAILSAFE
+        self.set_motor_speeds(left_wheel_velocity, right_wheel_velocity)
 
 class CompassSensor:
 
@@ -165,3 +215,4 @@ class RobotPose:
     #this is for pretty printing
     def __repr__(self) -> str:
         return f"x:{self.x},y:{self.y},theta:{self.theta}"
+

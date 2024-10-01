@@ -83,7 +83,7 @@ if __name__ == "__main__":
             env.draw(screen)
             robot.draw(screen)
             
-            #lidar.draw(robot_pose, _intersect_points, screen)
+            lidar.draw(robot_pose, _intersect_points, screen)
 
             particle_filter.draw(screen, mixed_pose)
             
